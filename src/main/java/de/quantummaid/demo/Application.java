@@ -21,11 +21,9 @@
 
 package de.quantummaid.demo;
 
-import de.quantummaid.demo.infrastructure.HttpMaidFactory;
-import de.quantummaid.httpmaid.HttpMaid;
-import de.quantummaid.httpmaid.purejavaendpoint.PureJavaEndpoint;
+import de.quantummaid.quantummaid.QuantumMaid;
 
-import static de.quantummaid.httpmaid.purejavaendpoint.PureJavaEndpoint.pureJavaEndpointFor;
+import static de.quantummaid.demo.infrastructure.HttpMaidFactory.httpMaid;
 
 public final class Application {
     private static final int PORT = 1337;
@@ -33,13 +31,15 @@ public final class Application {
     private Application() {
     }
 
-    public static PureJavaEndpoint startApplication(final int port) {
-        final HttpMaid httpMaid = HttpMaidFactory.httpMaid();
-        return pureJavaEndpointFor(httpMaid).listeningOnThePort(port);
+    public static QuantumMaid startApplication(final int port) {
+        final QuantumMaid quantumMaid = QuantumMaid.quantumMaid()
+                .withHttpMaid(httpMaid())
+                .withLocalHostEndpointOnPort(port);
+        quantumMaid.runAsynchronously();
+        return quantumMaid;
     }
 
     public static void main(final String[] args) {
         startApplication(PORT);
-        System.out.println("Application started.");
     }
 }

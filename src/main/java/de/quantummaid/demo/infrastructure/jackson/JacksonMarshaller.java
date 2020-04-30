@@ -31,8 +31,6 @@ import lombok.EqualsAndHashCode;
 import lombok.RequiredArgsConstructor;
 import lombok.ToString;
 
-import java.util.Map;
-
 import static com.fasterxml.jackson.annotation.JsonInclude.Include.NON_NULL;
 import static java.lang.String.format;
 
@@ -52,7 +50,7 @@ public final class JacksonMarshaller implements Unmarshaller, Marshaller {
     }
 
     @Override
-    public String marshall(final Map<String, Object> map) {
+    public String marshall(final Object map) {
         try {
             return objectMapper.writeValueAsString(map);
         } catch (final JsonProcessingException e) {
@@ -60,14 +58,13 @@ public final class JacksonMarshaller implements Unmarshaller, Marshaller {
         }
     }
 
-    @SuppressWarnings("unchecked")
     @Override
-    public Map<String, Object> unmarshall(final String string) {
+    public Object unmarshall(final String string) {
         if (string.isEmpty()) {
             return null;
         }
         try {
-            return objectMapper.readValue(string, Map.class);
+            return objectMapper.readValue(string, Object.class);
         } catch (final JsonProcessingException e) {
             throw new RuntimeException(format("Error during unmarshalling of '%s'", string), e);
         }

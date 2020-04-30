@@ -27,7 +27,7 @@ import de.quantummaid.demo.usecases.AuthenticatedUser;
 import de.quantummaid.demo.usecases.DeleteUserUseCase;
 import de.quantummaid.demo.usecases.ListUsersUseCase;
 import de.quantummaid.httpmaid.HttpMaid;
-import de.quantummaid.httpmaid.handler.NoHandlerFoundException;
+import de.quantummaid.httpmaid.handler.PageNotFoundException;
 import de.quantummaid.httpmaid.handler.http.HttpHandler;
 import de.quantummaid.httpmaid.path.PathTemplate;
 import io.jsonwebtoken.Claims;
@@ -41,10 +41,11 @@ import java.util.Optional;
 import static de.quantummaid.demo.infrastructure.jackson.JacksonMarshaller.jacksonMarshaller;
 import static de.quantummaid.demo.usecases.AuthenticatedUser.deserialize;
 import static de.quantummaid.httpmaid.HttpMaid.anHttpMaid;
-import static de.quantummaid.httpmaid.events.EventConfigurators.toEnrichTheIntermediateMapUsing;
+import static de.quantummaid.httpmaid.events.EventConfigurators.mappingAuthenticationInformation;
 import static de.quantummaid.httpmaid.exceptions.ExceptionConfigurators.toMapExceptionsOfType;
 import static de.quantummaid.httpmaid.http.Http.StatusCodes.NOT_FOUND;
 import static de.quantummaid.httpmaid.http.Http.StatusCodes.UNAUTHORIZED;
+import static de.quantummaid.httpmaid.http.HttpRequestMethod.POST;
 import static de.quantummaid.httpmaid.http.headers.ContentType.json;
 import static de.quantummaid.httpmaid.marshalling.MarshallingConfigurators.toMarshallContentType;
 import static de.quantummaid.httpmaid.path.PathTemplate.pathTemplate;
@@ -72,14 +73,8 @@ public final class HttpMaidFactory {
         return anHttpMaid()
                 .post("/public/login", loginHandler(key))
                 .get("/user/list", ListUsersUseCase.class)
-                .post("/admin/add", AddUserUseCase.class)
-                .post("/admin/delete", DeleteUserUseCase.class)
-                .configured(toEnrichTheIntermediateMapUsing((map, request) -> {
-                    final Optional<AuthenticatedUser> authenticatedUser = request.authenticationInformationAs(AuthenticatedUser.class);
-                    authenticatedUser.ifPresent(currentUser -> map.put("currentUser", Map.of(
-                                    "userName", currentUser.getUserName(),
-                                    "admin", String.valueOf(currentUser.isAdmin()))));
-                }))
+                .serving(AddUserUseCase.class, mappingAuthenticationInformation()).forRequestPath("/admin/add").andRequestMethod(POST)
+                .serving(DeleteUserUseCase.class, mappingAuthenticationInformation()).forRequestPath("/admin/delete").andRequestMethod(POST)
                 .configured(toAuthenticateUsingHeader("Authorization", challenge -> authenticatedUserFromJwt(challenge, jwtParser))
                         .notFailingOnMissingAuthenticationForRequestsTo("/public/*")
                         .rejectingUnauthenticatedRequestsUsing((request, response) -> response.setStatus(UNAUTHORIZED)))
@@ -90,7 +85,8 @@ public final class HttpMaidFactory {
                                 .orElse(false))
                         .exceptRequestsTo("/public/*")
                         .rejectingUnauthorizedRequestsUsing((request, response) -> response.setStatus(UNAUTHORIZED)))
-                .configured(toMapExceptionsOfType(NoHandlerFoundException.class, (exception, response) -> response.setStatus(NOT_FOUND)))
+
+                .configured(toMapExceptionsOfType(PageNotFoundException.class, (exception, response) -> response.setStatus(NOT_FOUND)))
                 .configured(toMarshallContentType(json(), jacksonMarshaller, jacksonMarshaller))
                 .build();
     }
